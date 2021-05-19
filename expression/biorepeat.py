@@ -69,55 +69,57 @@ write.table(DE_genes,"{out_DE_gene}",sep="\t", quote=FALSE, row.names=FALSE)
 
     return cmd
 
-def makedeseq2(input_dir,samples,groups,out_dir,prefix):
+def makedeseq2(input_dir,samples,groups,out_dir,prefix,read_length):
     ### make deseq2 R script (allowed small sample sizes: n < 4 per group)
     sample_name = ','.join(['"'+sample+'"' for sample in samples])
     group_name = ','.join(['"'+group+'"' for group in groups])
-    out_transcript_csv = os.path.join(out_dir, prefix+".RNAseq_transcript_results.csv")
+    #out_transcript_csv = os.path.join(out_dir, prefix+".RNAseq_transcript_results.csv")
     out_gene_csv = os.path.join(out_dir, prefix+".RNAseq_gene_results.csv")
-    out_DE_transcript = os.path.join(out_dir,prefix+".RNAseq_different_expression_transcripts_results.tsv")
+    #out_DE_transcript = os.path.join(out_dir,prefix+".RNAseq_different_expression_transcripts_results.tsv")
     out_DE_gene = os.path.join(out_dir,prefix+".RNAseq_different_expression_genes_results.tsv")
+    out_up_gene = os.path.join(out_dir,prefix+".RNAseq_UP_genes_results.tsv")
+    out_down_gene = os.path.join(out_dir,prefix+".RNAseq_DOWN_genes_results.tsv")
 
     gtf = [os.path.join(input_dir,sample,sample+'out.gtf') for sample in samples]
     with open(os.path.join(out_dir,'sample.list'),'w') as fh:
         for index,sample in enumerate(samples):
             fh.write(sample+' '+gtf[index]+'\n')
-    cmd_make_matrix = f"python {preDE} -i {out_dir}/sample.list -g {out_dir}/{prefix}.gene_count_matrix.csv" \
-                      f"-t {out_dir}/{prefix}.transcript_count_matrix.csv".format(preDE=preDE,out_dir=out_dir,
-                                                                                  prefix=prefix)
-    cmd_make_deseq2 = f"""library(DESeq2)
+    cmd_make_matrix = "python {preDE} -i {out_dir}/sample.list -l {read_len}" \
+                      " -g {out_dir}/{prefix}.gene_count_matrix.csv " \
+                      "-t {out_dir}/{prefix}.transcript_count_matrix.csv".format(preDE=preDE,out_dir=out_dir,
+                                                                                 prefix=prefix,read_len=read_length)
+    #### prepDE.py first column is geneid|gene name, try remove gene names
 
+
+
+    cmd_make_deseq2 = f"""library(DESeq2)
 # Load gene count matrix
-genecountData <- as.matrix(read.csv("{out_dir}/{prefix}.gene_count_matrix.csv", row.names="gene_id"))
-transcriptcountData <- as.matrix(read.csv("{out_dir}/{prefix}.transcript_count_matrix.csv", row.names="transcript_id"))
-condition <- factor(c({group_name}))
+genecountData <- as.matrix(read.csv("{out_dir}/{prefix}.gene_count_matrix.csv"))
+colnames(genecountData)[1] <- 'GeneID'
+condition <- factor(c({group_name}))  ## order limited: c("Control","Treatment") --> Treatment vs. Control
 # Get target matrix
 genecolData <- data.frame(row.names=colnames(genecountData), condition)
-transcriptcolData <- data.frame(row.names=colnames(transcriptcountData), condition)
 
 genecountData <- genecountData[, rownames(genecolData)]
-transcriptcountData <- transcriptcountData[, rownames(transcriptcolData)]
 
 genedds <- DESeqDataSetFromMatrix(countData = genecountData, colData = genecolData, design = ~ condition)
-transcriptdds <- DESeqDataSetFromMatrix(countData = transcriptcountData, colData = transcriptcolData, design = ~ condition)
 # Identify signficant differently expressed Transcripts/genes
 genedataset <- DESeq(genedds)
-transcriptdataset <- DESeq(transcriptdds)
-
 generes <- results(genedataset)
-transcriptres <- results(transcriptdataset)
+
 # Sort by q value
 generesordered <- generes[order(generes$padj),]
-transcriptresordered <- transcriptres[order(transcriptres$padj),]
 
 write.csv(as.data.frame(generesordered),file="{out_gene_csv}")
-write.csv(as.data.frame(transcriptresordered),file="{out_transcript_csv}")
 
 diff_gene_deseq2 <-subset(generesordere, padj < 0.05)
-diff_transcript_deseq2 <- subset(transcriptresordered,padj < 0.05)
+
+up_regulated_genes <- subset(generesordere, padj < 0.05 & log2FoldChange > 0)
+down_regulated_genes <- subset(generesordere, padj < 0.05 & log2FoldChange < 0)
 
 write.table(diff_gene_deseq2,"{out_DE_gene}",sep="\t", quote=FALSE, row.names=FALSE)
-write.table(diff_transcript_deseq2,"{out_DE_transcript}",sep="\t", quote=FALSE, row.names=FALSE)
+write.table(up_regulated_genes,"{out_up_gene}",sep="\t", quote=FALSE, row.names=FALSE)
+write.table(down_regulated_genes,"{out_down_gene}",sep="\t", quote=FALSE, row.names=FALSE)
 """.format(**locals())
 
     return cmd_make_matrix,cmd_make_deseq2

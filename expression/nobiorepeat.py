@@ -1,26 +1,6 @@
 import os
 import rnaseq.utils as utils
-import rnaseq.getmyconfig as getmyconfig
 
-featurecount = getmyconfig('Transcript','featurecount').strip("'")
-
-def makefeaturecount(bams,gtf,out_dir,level='exon',attrType='gene_id',threads=8,ref_only=False,paired=True,
-                     other_parameters=None):
-    bam = ' '.join(bams)
-    if not ref_only:
-        cmd_count = f"""{featurecount} -T {threads} -a {out_dir}/merged.gtf -o {out_dir}/All.read.count.txt
-        -t {level} -g {attrType} {bam}""".format(**locals())
-    else:
-        cmd_count = f"""{featurecount} -T {threads} -a {gtf} -o {out_dir}/All.read.count.txt
-        -t {level} -g {attrType} {bam}""".format(**locals())
-
-    if paired:
-        cmd_count += " -p"
-
-    if other_parameters:
-        cmd_count += other_parameters
-
-    return cmd_count
 
 
 def makeDEscript(samples,groups,out_dir,prefix):
@@ -30,6 +10,9 @@ def makeDEscript(samples,groups,out_dir,prefix):
     out_gene = os.path.join(out_dir, prefix)
     #out_DE_transcript = os.path.join(out_dir,prefix+".RNAseq_different_expression_transcripts_results.tsv")
     out_DE_gene = os.path.join(out_dir,prefix+".RNAseq_different_expression_genes_results.tsv")
+    out_up_gene = os.path.join(out_dir,prefix+".RNAseq_UP_genes_results.tsv")
+    out_down_gene = os.path.join(out_dir,prefix+".RNAseq_DOWN_genes_results.tsv")
+
     utils.makedir(out_gene)
 
     cmd_identify = f"""library(edgeR)
@@ -69,7 +52,8 @@ pValue=0.005,qValue=0.005,outputDir=out_gene)
     cmd_filter = """
 ## Filter DE genes by |log2FC| >1 && qvalue < 0.005
 DE_data <- read.table("%s/output_score.txt", header=TRUE)
-names(DE_data) <- c("GeneNames","%s","log2FoldChange","log2FoldChange normalized","p-value","q-value_Benjamini_1995","q-value_Storey_2003","Signature_p-value_0.005")
+names(DE_data) <- c("GeneID","%s","log2FoldChange","log2FoldChange_normalized","p-value","q-value_Benjamini_1995",
+"q-value_Storey_2003","Signature_p-value_0.005")
 if (DE_data$ignature_p-value_0.005 == "TRUE"){
     if (DE_data$value1 > DE_data$value2)){
     DE_data$log2FoldChange [is.na(DE_data$log2FoldChange)] <- Inf
@@ -77,7 +61,12 @@ if (DE_data$ignature_p-value_0.005 == "TRUE"){
     else {
     DE_data$log2FoldChange [is.na(DE_data$log2FoldChange)] <- -Inf
     }
-DE_data_sig <- DE_data[DE_data$q-value_Storey_2003. < 0.005 & (DE_data$log2FoldChange >1 | DE_data$log2FoldChange < -1)]
+DE_data_sig <- DE_data[DE_data$q-value_Storey_2003 < 0.005 & (DE_data$log2FoldChange >1 | DE_data$log2FoldChange < -1)]
+DE_data_sig_up <- DE_data[DE_data$q-value_Storey_2003 < 0.005 & DE_data$log2FoldChange >1]
+DE_data_sig_up <- DE_data[DE_data$q-value_Storey_2003 < 0.005 & DE_data$log2FoldChange <-1]
 write.table(DE_data_sig, "%s",sep="\t", quote=FALSE, row.names=FALSE)
-"""%(out_gene,sample_name, out_DE_gene)
+write.table(DE_data_sig, "%s",sep="\t", quote=FALSE, row.names=FALSE)
+write.table(DE_data_sig, "%s",sep="\t", quote=FALSE, row.names=FALSE)
+"""%(out_gene,sample_name, out_DE_gene,out_up_gene,out_down_gene)
+
     return cmd_identify, cmd_filter
