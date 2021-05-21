@@ -3,6 +3,7 @@ import os
 import argparse
 import glob
 import utils
+import subprocess
 
 from align import hisat2
 from assembly import stringtie
@@ -85,6 +86,9 @@ python3
     mapping = parser.add_argument_group(title='Mapping options')
     mapping.add_argument('--mthreads',type=int,
                          help="Threads for mapping (hisat2) ")
+    assembly = parser.add_argument_group(title='Assembly options')
+    assembly.add_argument('--dthreads', type=int,
+                         help="Threads for assembly and quantitation (stringtie) ")
     enrich = parser.add_argument_group(title='Enrichment options')
     enrich.add_argument('--go_orgdb',type=str,default='org.Hs.eg.db',
                         help="OrgDb database for GO enrichment")
@@ -101,6 +105,7 @@ python3
     compare = args.compare
     script = args.script
     mthreads = args.mthreads
+    dthreads = args.dthreads
     merge = args.merge
     readlength = args.readlength
     go_orgdb = args.go_orgdb
