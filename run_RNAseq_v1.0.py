@@ -29,7 +29,7 @@ def checksamples(inputs_dir,samples_dic):
                 else:
                     new_dic[group] = [sample + ':' + sample_f]
             else:
-                print('Can not find files,please check and use names as sample_1/2.fq/.fastq(.gz)')
+                raise Exception('Can not find files,please check and name files as samplexx_1/2.fq/.fastq(.gz)')
 
     return new_dic,paired
 
@@ -46,7 +46,6 @@ def mapping(dic,ref_prefix,out_path):
                 map_dic[sample_name] = hisat2.align(sample_f,ref_prefix,out_name,mthreads)
 
     return map_dic
-
 
 
 if __name__ == 'main':
@@ -80,15 +79,13 @@ python3
     general.add_argument('--readlength',type=int,
                          help="Average read length")
     general.add_argument('--merge',type=str,default=True,choices=[True,False],
-                         help="Merge novel transcripts with reference gtf file if choose True,otherwise use reference gtf only")
+                         help="Merge novel transcripts with reference gtf file if set True,otherwise use reference gtf only")
     general.add_argument('--script',type=str,default=True,choices=[True,False],
                          help='Only generate shell scripts')
-    mapping = parser.add_argument_group(title='Mapping options')
-    mapping.add_argument('--mthreads',type=int,
-                         help="Threads for mapping (hisat2) ")
-    assembly = parser.add_argument_group(title='Assembly options')
-    assembly.add_argument('--dthreads', type=int,
-                         help="Threads for assembly and quantitation (stringtie) ")
+    general.add_argument('--jobs',type=int,default=1,
+                         help='The maximum jobs when run in local at the same time')
+    general.add_argument('--mthreads',type=int,default=5,
+                         help="Maximum Threads")
     enrich = parser.add_argument_group(title='Enrichment options')
     enrich.add_argument('--go_orgdb',type=str,default='org.Hs.eg.db',
                         help="OrgDb database for GO enrichment")
@@ -105,16 +102,16 @@ python3
     compare = args.compare
     script = args.script
     mthreads = args.mthreads
-    dthreads = args.dthreads
     merge = args.merge
     readlength = args.readlength
     go_orgdb = args.go_orgdb
     kegg_species = args.kegg_species
-
+    jobs = args.jobs
 ### parse parameters ###
     index_shell = os.path.join(os.path.abspath(os.path.dirname(__file__)),'align','index.sh')
     statistics_shell = os.path.join(os.path.abspath(os.path.dirname(__file__)),'align','statistics.sh')
-    if buildver and not ref and not gtf:
+    ref_prefix = ''
+    if buildver and not (ref or gtf):
         if buildver == 'hg19':
             genomicsdb = os.path.join(os.path.dirname(os.path.abspath(inputs_dir).rstrip('/')), 'genomicsdb','hg19/')
             ref = os.path.join(genomicsdb,'hg19.fa')
@@ -144,11 +141,12 @@ python3
 
   ## main work
     map_result_path = os.path.join(os.path.abspath(outputs_dir), 'mapping_results')
-    assembly_path = os.path.join(os.path.abspath(outputs_dir), 'AQ_results')
+    assembly_path = os.path.join(os.path.abspath(outputs_dir), 'quantitation_results')
     DEG_path = os.path.join(os.path.abspath(outputs_dir), 'DEG_results')
 
     paired = True
     # mapping
+    map_dic = {}
     if samples_dic:
         full_path_sample_dic,paired = checksamples(inputs_dir, samples_dic)
         map_dic = mapping(full_path_sample_dic,ref_prefix,map_result_path)
@@ -157,39 +155,58 @@ python3
             with open('s1_'+sample+'.sh','w') as fh:
                 fh.write(map_dic[sample])
     else:
-        for sample in map_dic:
-            utils.run_shell_cmd(map_dic[sample])
+        print("Mapping...")
+        utils.multi_run(utils.run_shell_cmd,map_dic.values(),jobs,mthreads)
 
     # assemble and quantitation by stringtie
     sample_names = map_dic.keys()
     bams = [os.path.join(map_result_path, sample_name + '.bam') for sample_name in sample_names]
-    assemble_quantity_dic = stringtie.assemblyandquantitation(sample_names,bams,gtf,assembly_path,dthreads,merge)
-    if 'merge' in assemble_quantity_dic:
-        merge_gtf_cmd = assemble_quantity_dic.pop('merge')
-        with open('s2.1.5_merge_gtf.sh','w') as fh:
-            fh.write(merge_gtf_cmd)
-    if script:
-        for sample in assemble_quantity_dic:
-            with open('s2.1_'+sample+'.assemble.sh','w') as fh:
-                fh.write(assemble_quantity_dic[sample][0])
-            with open('s2.2_'+sample+'.count.sh','w') as fh:
-                fh.write(assemble_quantity_dic[sample][1])
-    else:
-        for sample in assemble_quantity_dic:
-            utils.run_shell_cmd(assemble_quantity_dic[sample][0])
-        utils.run_shell_cmd(merge_gtf_cmd)
-        for sample in assemble_quantity_dic:
-            utils.run_shell_cmd(assemble_quantity_dic[sample][1])
+    assemble_quantity_dic = stringtie.assemblyandquantitation(sample_names,bams,gtf,assembly_path,mthreads,merge)
 
-    # get DEGs
+    if script:
+        if 'merge' in assemble_quantity_dic:
+            for sample in assemble_quantity_dic:
+                with open('s2.1_'+sample+'.assemble.sh','w') as fh:
+                    fh.write(assemble_quantity_dic[sample][0])
+                with open('s2.2_'+sample+'.count.sh','w') as fh:
+                    fh.write(assemble_quantity_dic[sample][1])
+            merge_gtf_cmd = assemble_quantity_dic['merge']
+            with open('s2.1.5_merge_gtf.sh', 'w') as fh:
+                fh.write(merge_gtf_cmd)
+        else:
+            for sample in assemble_quantity_dic:
+                with open('s2_' + sample + '.count.sh', 'w') as fh:
+                    fh.write(assemble_quantity_dic[sample][0])
+    else:
+        if 'merge' in assemble_quantity_dic:
+            print("Transcripts quantitation...")
+            ## predict novo transcripts
+            new_trans_cmd = [i[0] for i in assemble_quantity_dic.values()]
+            utils.multi_run(utils.run_shell_cmd, new_trans_cmd, jobs, mthreads)
+            ## merge novo and ref transcripts
+            utils.multi_run(utils.run_shell_cmd, assemble_quantity_dic['merge'], jobs, mthreads)
+            ## generate tab
+            tab_cmd = [i[1] for i in assemble_quantity_dic.values()]
+            utils.multi_run(utils.run_shell_cmd, tab_cmd, jobs, mthreads)
+        else:
+            ## generate tab
+            print("Transcripts quantitation...")
+            utils.multi_run(utils.run_shell_cmd, assemble_quantity_dic.values(), jobs, mthreads)
+
+    # featurecount for read count
     if merge:
         merged_gtf_file = os.path.join(assembly_path, 'merged.gtf')
         count_matrix_cmd = count.featurecount(bams, merged_gtf_file, DEG_path, paired)
     else:
         count_matrix_cmd = count.featurecount(bams, gtf, DEG_path, paired)
-    with open('s3.1_all_count_matrix.sh', 'w') as fh:
-        fh.write(count_matrix_cmd)
+    if script:
+        with open('s3.1_all_count_matrix.sh', 'w') as fh:
+            fh.write(count_matrix_cmd)
+    else:
+        print("Read count table generating...")
+        utils.multi_run(utils.run_shell_cmd, count_matrix_cmd, jobs, mthreads)
 
+    # get DEGs
     compare_groups = compare.split(';')
     for group in compare_groups:
         A,B = group.split(':')[0],group.split(':')[1]
@@ -199,30 +216,46 @@ python3
         two_group_out_path = os.path.join(DEG_path,A + 'vs' + B)
         if len(samples_dic[A]) < 2 or len(samples_dic[B]) < 2: ## no bio repeats
             TMM_cmd, identify_cmd = nobiorepeat.makeDEscript(two_group_samples,two_group_names,DEG_path,A+'vs'+B)
-            with open('s3.2.1_'+A+'vs'+B+'.TMM.sh','w') as fh:
-                fh.write(TMM_cmd)
-            with open('s3.2.2_'+A+'vs'+B+'.DEG.sh','w') as fh:
-                fh.write(identify_cmd)
-
-            volcano_cmd = volcano.volcano(DE_file,A,B,False)
-            with open('s3_3_'++A+'vs'+B+'.volcano.sh','w') as fh:
-                fh.write(volcano_cmd)
+            volcano_cmd = volcano.volcano(DE_file, A, B, False)
+            if script:
+                with open('s3.2.1_'+A+'vs'+B+'.TMM.sh','w') as fh:
+                    fh.write(TMM_cmd)
+                with open('s3.2.2_'+A+'vs'+B+'.DEG.sh','w') as fh:
+                    fh.write(identify_cmd)
+                with open('s3_3_'+ A+'vs'+B+'.volcano.sh','w') as fh:
+                    fh.write(volcano_cmd)
+            else:
+                print("%s differently expressed genes(DEGs) identifying..." %(A+'vs'+B))
+                utils.multi_run(utils.run_shell_cmd, TMM_cmd, jobs, mthreads)
+                utils.multi_run(utils.run_shell_cmd, identify_cmd, jobs, mthreads)
+                utils.multi_run(utils.run_shell_cmd, volcano_cmd, jobs, mthreads)
 
         elif len(samples_dic[A]) >= 2 and len(samples_dic[B]) >= 2: ## bio repeats
             cal_matrix_cmd, identify2_cmd = biorepeat.makedeseq2(assembly_path,two_group_samples,two_group_names,DEG_path,A+'vs'+B,readlength)
-            with open('s3.2.1_' + A + 'vs' + B + '.cal.matrix.sh', 'w') as fh:
-                fh.write(cal_matrix_cmd)
-            with open('s3.2.2_'+A+'vs'+B+'.DEG.sh','w') as fh:
-                fh.write(identify2_cmd)
-
-            volcano_cmd = volcano.volcano(DE_file,A,B,True)
-            with open('s3_3_'++A+'vs'+B+'.volcano.sh','w') as fh:
-                fh.write(volcano_cmd)
+            volcano_cmd = volcano.volcano(DE_file, A, B, True)
+            if script:
+                with open('s3.2.1_' + A + 'vs' + B + '.cal.matrix.sh', 'w') as fh:
+                    fh.write(cal_matrix_cmd)
+                with open('s3.2.2_'+A+'vs'+B+'.DEG.sh','w') as fh:
+                    fh.write(identify2_cmd)
+                with open('s3_3_'++A+'vs'+B+'.volcano.sh','w') as fh:
+                    fh.write(volcano_cmd)
+            else:
+                print("%s differently expressed genes(DEGs) identifying..." %(A+'vs'+B))
+                utils.multi_run(utils.run_shell_cmd, cal_matrix_cmd, jobs, mthreads)
+                utils.multi_run(utils.run_shell_cmd, identify2_cmd, jobs, mthreads)
+                utils.multi_run(utils.run_shell_cmd, volcano_cmd, jobs, mthreads)
 
     # GO and KEGG enrichment
         go_cmd = go.makeGO(DE_file,two_group_out_path,A+'vs'+B,go_orgdb)
-        with open('s4_'+A+'vs'+B+'All.GO.sh','w') as fh:
-            fh.write(go_cmd)
-        kegg_cmd = kegg.makeKEGG(DE_file,two_group_out_path,A+'vs'+B,kegg_species)
-        with open('s4_'+A+'vs'+B+'All.KEGG.sh','w') as fh:
-            fh.write(kegg_cmd)
+        kegg_cmd = kegg.makeKEGG(DE_file, two_group_out_path, A + 'vs' + B, kegg_species)
+        if script:
+            with open('s4_'+A+'vs'+B+'.All.GO.sh','w') as fh:
+                fh.write(go_cmd)
+            with open('s4_'+A+'vs'+B+'.All.KEGG.sh','w') as fh:
+                fh.write(kegg_cmd)
+        else:
+            print("GO enrichment...")
+            utils.multi_run(utils.run_shell_cmd, go_cmd, jobs, mthreads)
+            print("KEGG enrichment...")
+            utils.multi_run(utils.run_shell_cmd, kegg_cmd, jobs, mthreads)
