@@ -238,7 +238,7 @@ python3
                     fh.write(cal_matrix_cmd)
                 with open('s3.2.2_'+A+'vs'+B+'.DEG.sh','w') as fh:
                     fh.write(identify2_cmd)
-                with open('s3_3_'++A+'vs'+B+'.volcano.sh','w') as fh:
+                with open('s3_3_'+A+'vs'+B+'.volcano.sh','w') as fh:
                     fh.write(volcano_cmd)
             else:
                 print("%s differently expressed genes(DEGs) identifying..." %(A+'vs'+B))
