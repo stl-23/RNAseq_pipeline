@@ -152,8 +152,7 @@ python3
         map_dic = mapping(full_path_sample_dic,ref_prefix,map_result_path)
     if script:
         for sample in map_dic:
-            with open('s1_'+sample+'.sh','w') as fh:
-                fh.write(map_dic[sample])
+            utils.out_cmd('s1_'+sample+'.sh', map_dic[sample])
     else:
         print("Mapping...")
         utils.multi_run(utils.run_shell_cmd,map_dic.values(),jobs,mthreads)
@@ -166,17 +165,14 @@ python3
     if script:
         if 'merge' in assemble_quantity_dic:
             for sample in assemble_quantity_dic:
-                with open('s2.1_'+sample+'.assemble.sh','w') as fh:
-                    fh.write(assemble_quantity_dic[sample][0])
-                with open('s2.2_'+sample+'.count.sh','w') as fh:
-                    fh.write(assemble_quantity_dic[sample][1])
+                utils.out_cmd('s2.1_'+sample+'.assemble.sh', assemble_quantity_dic[sample][0])
+                utils.out_cmd('s2.2_'+sample+'.count.sh', assemble_quantity_dic[sample][1])
+
             merge_gtf_cmd = assemble_quantity_dic['merge']
-            with open('s2.1.5_merge_gtf.sh', 'w') as fh:
-                fh.write(merge_gtf_cmd)
+            utils.out_cmd('s2.1.5_merge_gtf.sh', merge_gtf_cmd)
         else:
             for sample in assemble_quantity_dic:
-                with open('s2_' + sample + '.count.sh', 'w') as fh:
-                    fh.write(assemble_quantity_dic[sample][0])
+                utils.out_cmd('s2_' + sample + '.count.sh', assemble_quantity_dic[sample][0])
     else:
         if 'merge' in assemble_quantity_dic:
             print("Transcripts quantitation...")
@@ -200,8 +196,8 @@ python3
     else:
         count_matrix_cmd = count.featurecount(bams, gtf, DEG_path, paired)
     if script:
-        with open('s3.1_all_count_matrix.sh', 'w') as fh:
-            fh.write(count_matrix_cmd)
+        utils.out_cmd('s3.1_all_count_matrix.sh', count_matrix_cmd)
+
     else:
         print("Read count table generating...")
         utils.multi_run(utils.run_shell_cmd, count_matrix_cmd, jobs, mthreads)
@@ -218,12 +214,9 @@ python3
             TMM_cmd, identify_cmd = nobiorepeat.makeDEscript(two_group_samples,two_group_names,DEG_path,A+'vs'+B)
             volcano_cmd = volcano.volcano(DE_file, A, B, False)
             if script:
-                with open('s3.2.1_'+A+'vs'+B+'.TMM.sh','w') as fh:
-                    fh.write(TMM_cmd)
-                with open('s3.2.2_'+A+'vs'+B+'.DEG.sh','w') as fh:
-                    fh.write(identify_cmd)
-                with open('s3_3_'+ A+'vs'+B+'.volcano.sh','w') as fh:
-                    fh.write(volcano_cmd)
+                utils.out_cmd('s3.2.1_'+A+'vs'+B+'.TMM.sh', TMM_cmd)
+                utils.out_cmd('s3.2.2_'+A+'vs'+B+'.DEG.sh', identify_cmd)
+                utils.out_cmd('s3_3_'+ A+'vs'+B+'.volcano.sh', volcano_cmd)
             else:
                 print("%s differently expressed genes(DEGs) identifying..." %(A+'vs'+B))
                 utils.multi_run(utils.run_shell_cmd, TMM_cmd, jobs, mthreads)
@@ -234,12 +227,9 @@ python3
             cal_matrix_cmd, identify2_cmd = biorepeat.makedeseq2(assembly_path,two_group_samples,two_group_names,DEG_path,A+'vs'+B,readlength)
             volcano_cmd = volcano.volcano(DE_file, A, B, True)
             if script:
-                with open('s3.2.1_' + A + 'vs' + B + '.cal.matrix.sh', 'w') as fh:
-                    fh.write(cal_matrix_cmd)
-                with open('s3.2.2_'+A+'vs'+B+'.DEG.sh','w') as fh:
-                    fh.write(identify2_cmd)
-                with open('s3_3_'+A+'vs'+B+'.volcano.sh','w') as fh:
-                    fh.write(volcano_cmd)
+                utils.out_cmd('s3.2.1_' + A + 'vs' + B + '.cal.matrix.sh', cal_matrix_cmd)
+                utils.out_cmd('s3.2.2_'+A+'vs'+B+'.DEG.sh', identify2_cmd)
+                utils.out_cmd('s3_3_'+A+'vs'+B+'.volcano.sh', volcano_cmd)
             else:
                 print("%s differently expressed genes(DEGs) identifying..." %(A+'vs'+B))
                 utils.multi_run(utils.run_shell_cmd, cal_matrix_cmd, jobs, mthreads)
@@ -250,10 +240,9 @@ python3
         go_cmd = go.makeGO(DE_file,two_group_out_path,A+'vs'+B,go_orgdb)
         kegg_cmd = kegg.makeKEGG(DE_file, two_group_out_path, A + 'vs' + B, kegg_species)
         if script:
-            with open('s4_'+A+'vs'+B+'.All.GO.sh','w') as fh:
-                fh.write(go_cmd)
-            with open('s4_'+A+'vs'+B+'.All.KEGG.sh','w') as fh:
-                fh.write(kegg_cmd)
+            utils.out_cmd('s4_'+A+'vs'+B+'.All.GO.sh',go_cmd)
+            utils.out_cmd('s4_'+A+'vs'+B+'.All.KEGG.sh',kegg_cmd)
+
         else:
             print("GO enrichment...")
             utils.multi_run(utils.run_shell_cmd, go_cmd, jobs, mthreads)
