@@ -1,15 +1,15 @@
-import getmyconfig
+from utils import getConfig
 
-featurecount = getmyconfig.getConfig('Transcript', 'featurecount').strip("'")
-def makefeaturecount(bams,gtf,out_dir,level='exon',attrType='gene_id',threads=8,ref_only=False,paired=True,
-                     other_parameters=None):
+featurecount = getConfig('Transcript', 'featurecount')
+def makefeaturecount(bams,gtf,out_dir,paired=True,threads=8,levels='exon',attrType='gene_id',other_parameters=None):
     bam = ' '.join(bams)
-    if not ref_only:
-        cmd_count = f"""{featurecount} -T {threads} -a {out_dir}/merged.gtf -o {out_dir}/All.read.count.txt
-        -t {level} -g {attrType} {bam}""".format(**locals())
-    else:
-        cmd_count = f"""{featurecount} -T {threads} -a {gtf} -o {out_dir}/All.read.count.txt
-        -t {level} -g {attrType} {bam}""".format(**locals())
+    cmd_count = f"""{featurecount} -T {threads} -a {gtf} -o {out_dir}/All.read.count.txt -t {levels} -g {attrType} {bam}""".format(featurecount=featurecount,
+    threads=threads,
+    gtf=gtf,
+    out_dir=out_dir,
+    levels=levels,
+    attrType=attrType,
+    bam=bam)
 
     if paired:
         cmd_count += " -p"
