@@ -36,20 +36,20 @@ def run_shell_cmd(cmd):
         print("STDOUT:", run.stdout)
         print("STDERR:", run.stderr)
 
-def multi_run(func,cmds,jobs,maxc):
+def multi_run(func,cmds,jobs):
     ## split command into sub-commands,
     ## each sub-command has {jobs} tasks
     ## run {jobs} tasks parallelly to save time
     if isinstance(cmds,list):
         for i in range(0, len(cmds), jobs):
             subcmds = cmds[i:i + jobs]
-            pool = ThreadPool(maxc)
+            pool = ThreadPool(jobs)
             pool.map(func, subcmds)
             pool.close()
             pool.join()
     elif isinstance(cmds,str):
         new_cmds = [cmds]
-        pool = ThreadPool(maxc)
+        pool = ThreadPool(jobs)
         pool.map(func, new_cmds)
         pool.close()
         pool.join()
