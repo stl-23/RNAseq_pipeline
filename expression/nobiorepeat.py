@@ -16,8 +16,8 @@ def makeDEscript(samples,groups,out_dir,prefix):
     utils.makedir(out_gene)
     cmd = "{Rscript}  {degseq_nobio} {samples} {groups} {path} {prefix}".format(Rscript=Rscript,
                                                                      degseq_nobio=degseq_nobio,
-                                                                     samples=samples,
-                                                                     groups=groups,
+                                                                     samples=sample_name,
+                                                                     groups=group_name,
                                                                      path=out_dir,
                                                                      prefix=prefix)
     return cmd
