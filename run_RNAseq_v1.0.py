@@ -53,18 +53,16 @@ def obtainDEG(groups,samples_dic,DEG_path):
         A,B = group.split(':')[0],group.split(':')[1]
         two_group_samples = samples_dic[A] + samples_dic[B]
         two_group_names = [A] * len(samples_dic[A]) + [B] * len(samples_dic[B])
-        DE_file = os.path.join(DEG_path, A + 'vs' + B + ".RNAseq_different_expression_genes_results.tsv")
         two_group_out_path = os.path.join(DEG_path,A + 'vs' + B)
+        #DE_file = os.path.join(two_group_out_path, A + 'vs' + B + ".RNAseq_different_expression_genes_results.tsv")
         if len(samples_dic[A]) < 2 or len(samples_dic[B]) < 2: ## no bio repeats
-            nobio_cmds = nobiorepeat.makeDEscript(two_group_samples,two_group_names,DEG_path,A+'vs'+B)
-            volcano_cmd = volcano.volcano(DE_file, A, B, False)
-            DEG_dic[A + 'vs' + B] = [nobio_cmds,volcano_cmd]
+            nobio_cmds = nobiorepeat.makeDEscript(two_group_samples,two_group_names,two_group_out_path,A+'vs'+B)
+            volcano_cmd = volcano.volcano(A, B, two_group_out_path, False)
+            DEG_dic[A + 'vs' + B] = [nobio_cmds, volcano_cmd]
         elif len(samples_dic[A]) >= 2 and len(samples_dic[B]) >= 2: ## bio repeats
-            cal_matrix_cmd, identify2_cmd = biorepeat.makedeseq2(assembly_path,two_group_samples,two_group_names,DEG_path,A+'vs'+B,readlength)
-            volcano_cmd = volcano.volcano(DE_file, A, B, True)
-            DEG_dic[A + 'vs' + B] = [cal_matrix_cmd,
-                                     identify2_cmd,
-                                     volcano_cmd]
+            bio_cmd = biorepeat.makedeseq2(assembly_path,two_group_samples,two_group_names,two_group_out_path,A+'vs'+B)
+            volcano_cmd = volcano.volcano(A, B, two_group_out_path, True)
+            DEG_dic[A + 'vs' + B] = [bio_cmd, volcano_cmd]
 
     return DEG_dic
 
@@ -72,8 +70,8 @@ def obtainEnrich(groups,samples_dic,DEG_path,org):
     Enrich_dic = {}
     for group in groups:
         A,B = group.split(':')[0],group.split(':')[1]
-        DE_file = os.path.join(DEG_path, A + 'vs' + B + ".RNAseq_different_expression_genes_results.tsv")
         two_group_out_path = os.path.join(DEG_path,A + 'vs' + B)
+        DE_file = os.path.join(two_group_out_path, A + 'vs' + B + ".RNAseq_different_expression_genes_results.tsv")
         go_cmd = go.makeGO(DE_file,two_group_out_path,A+'vs'+B,org)
         kegg_cmd = kegg.makeKEGG(DE_file, two_group_out_path, A + 'vs' + B, org)
         Enrich_dic[A+'vs'+B] = [go_cmd,kegg_cmd]
@@ -110,8 +108,6 @@ if __name__ == '__main__':
                               "e.g. group1:group2:group3...")
     general.add_argument('--compare',type=str,
                          help="DEG(Differentially Expressed Genes) group pairs. group1:group2,group1:group3...")
-    general.add_argument('--readlength',type=int,
-                         help="Average read length")
     general.add_argument('--merge', action='store_true',
                          help="Merge novel transcripts with reference gtf file if set True,otherwise use reference gtf only")
     general.add_argument('--script',action='store_true',
@@ -136,7 +132,6 @@ if __name__ == '__main__':
     script = args.script
     mthreads = args.mthreads
     merge = args.merge
-    readlength = args.readlength
     org = args.org
     jobs = args.jobs
 ### parse parameters ###
@@ -167,16 +162,16 @@ if __name__ == '__main__':
         #gtf = ref_prefix+'.gtf'
 
   ## {group1:[sample1,sample2,sample3],group2:[sample4,sample5,sample6]}
-    #samples_dic = {i.split(':')[0]:i.split(':')[1].split(',') for i in samples.strip().split(";")}
     samples_dic = { i[0]:i[1].split(",") for i in zip(groups.strip().split(":"),samples.strip().split(":")) }
   ## main work
     map_result_path = os.path.join(os.path.abspath(outputs_dir), 'mapping_results')
     assembly_path = os.path.join(os.path.abspath(outputs_dir), 'quantitation_results')
     DEG_path = os.path.join(os.path.abspath(outputs_dir), 'DEG_results')
-
+    utils.makedir(map_result_path)
+    utils.makedir(assembly_path)
+    utils.makedir(DEG_path)
     # mapping
     map_dic = {}
-    utils.makedir(map_result_path)
     if samples_dic:
         full_path_sample_dic,paired = checksamples(inputs_dir, samples_dic)
         map_dic = mapping(full_path_sample_dic,ref_prefix,map_result_path)
@@ -184,11 +179,10 @@ if __name__ == '__main__':
         for sample in map_dic:
             utils.out_cmd('s1_'+sample+'.sh', map_dic[sample])
     else:
-        print("Mapping...")
+        print("Step1:Mapping...")
         utils.multi_run(utils.run_shell_cmd,list(map_dic.values()),jobs)
 
     # assemble and quantitation by stringtie
-    utils.makedir(assembly_path)
     sample_names = map_dic.keys()
     bams = [os.path.join(map_result_path, sample_name + '.bam') for sample_name in sample_names]
     assemble_quantity_dic = stringtie.assemblyandquantitation(sample_names,bams,gtf,assembly_path,mthreads,merge)
@@ -218,7 +212,7 @@ if __name__ == '__main__':
             utils.multi_run(utils.run_shell_cmd, tab_cmd, jobs)
         else:
             ## generate tab
-            print("Transcripts quantitation...")
+            print("Step2:Transcripts quantitation...")
             utils.multi_run(utils.run_shell_cmd, list(assemble_quantity_dic.values()), jobs)
 
     # featurecount for read count
@@ -231,11 +225,10 @@ if __name__ == '__main__':
         utils.out_cmd('s3.1_all_count_matrix.sh', count_matrix_cmd)
 
     else:
-        print("Read count table generating...")
+        print("Step3:Read count table generating...")
         utils.multi_run(utils.run_shell_cmd, count_matrix_cmd, jobs)
 
     # get DEGs
-    utils.makedir(DEG_path)
     compare_groups = compare.split(',')
     DEG_dic = obtainDEG(compare_groups,samples_dic,DEG_path)
     if script:
@@ -244,11 +237,11 @@ if __name__ == '__main__':
                 utils.out_cmd('s3.2_'+group+'.DEG.sh', DEG_dic[group][0])
                 utils.out_cmd('s3_3_'+ group+'.volcano.sh', DEG_dic[group][1])
             elif len(DEG_dic[group]) == 3: # bio repeats
-                utils.out_cmd('s3.2.1_'+group+'.cal.matrix.sh',DEG_dic[group][0])
-                utils.out_cmd('s3.2.2_'+group+'.DEG.sh', DEG_dic[group][1])
-                utils.out_cmd('s3_3_'+group+'.volcano.sh', DEG_dic[group][2])
+                #utils.out_cmd('s3.2.1_'+group+'.cal.matrix.sh',DEG_dic[group][0])
+                utils.out_cmd('s3.2_'+group+'.DEG.sh', DEG_dic[group][0])
+                utils.out_cmd('s3_3_'+group+'.volcano.sh', DEG_dic[group][1])
     else:
-        print("%s differently expressed genes(DEGs) identifying..." %(','.join(DEG_dic.keys())))
+        print("Step4: %s differently expressed genes(DEGs) identifying..." %(','.join(DEG_dic.keys())))
         cal_matrix_cmds = []
         DEG_cmds = []
         volcano_cmds = []
@@ -257,11 +250,11 @@ if __name__ == '__main__':
                 DEG_cmds.append(DEG_dic[group][0])
                 volcano_cmds.append(DEG_dic[group][1])
             elif len(DEG_dic[group]) == 3: # bio repeats
-                cal_matrix_cmds.append(DEG_dic[group][0])
-                DEG_cmds.append(DEG_dic[group][1])
-                volcano_cmds.append(DEG_dic[group][2])
-        if cal_matrix_cmds:
-            utils.multi_run(utils.run_shell_cmd, cal_matrix_cmds, jobs)
+                #cal_matrix_cmds.append(DEG_dic[group][0])
+                DEG_cmds.append(DEG_dic[group][0])
+                volcano_cmds.append(DEG_dic[group][1])
+        #if cal_matrix_cmds:
+        #    utils.multi_run(utils.run_shell_cmd, cal_matrix_cmds, jobs)
         utils.multi_run(utils.run_shell_cmd, DEG_cmds, jobs)
         utils.multi_run(utils.run_shell_cmd, volcano_cmds, jobs)
 
@@ -272,7 +265,7 @@ if __name__ == '__main__':
             utils.out_cmd('s4_'+group+'.All.GO.sh',Enrich_dic[group][0])
             utils.out_cmd('s4_'+group+'.All.KEGG.sh',Enrich_dic[group][1])
     else:
-        print("Enrichment analysis...")
+        print("Step5:Enrichment analysis...")
         go_cmds = [i[0] for i in Enrich_dic]
         kegg_cmds = [i[1] for i in Enrich_dic]
         utils.multi_run(utils.run_shell_cmd, go_cmds, jobs)
