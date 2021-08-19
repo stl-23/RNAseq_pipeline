@@ -1,4 +1,4 @@
-# Title     : Identify DEGs for bio repeat samples (n<4)
+# Title     : Identify DEGs for bio repeat samples
 # Created by: stl23
 # Created on: 2021/8/5
 
