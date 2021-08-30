@@ -15,14 +15,17 @@ def checksamples(inputs_dir,samples_dic):
     paired = True
     for group,samples in samples_dic.items():
         for sample in samples:
-            sample_f = glob.glob(os.path.join(os.path.abspath(inputs_dir).rstrip('/'),sample+'_1*'))[0]
-            sample_r = glob.glob(os.path.join(os.path.abspath(inputs_dir).rstrip('/'),sample+'_2*'))[0]
-            if sample_f and sample_r:
+            sample_f_list = glob.glob(os.path.join(os.path.abspath(inputs_dir).rstrip('/'),sample+'_1*'))
+            sample_r_list = glob.glob(os.path.join(os.path.abspath(inputs_dir).rstrip('/'),sample+'_2*'))
+            if sample_f_list and sample_r_list:
+                sample_f = sample_f_list[0]
+                sample_r = sample_f_list[0]
                 if group in new_dic:
                     new_dic[group].append(sample+':'+sample_f+';'+sample_r)
                 else:
                     new_dic[group] = [sample+':'+sample_f+';'+sample_r]
-            elif sample_f and not sample_r:
+            elif sample_f_list and not sample_r_list:
+                sample_f = sample_f_list[0]
                 paired = False
                 if group in new_dic:
                     new_dic[group].append(sample + ':' + sample_f)
