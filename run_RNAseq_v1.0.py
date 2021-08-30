@@ -48,7 +48,7 @@ def mapping(dic,ref_prefix,out_path):
                 map_dic[sample_name] = hisat2.align(sample_f,sample_r,ref_prefix,out_name,mthreads)
             elif len(sample_list) == 1: # single end
                 sample_f = sample_list[0]
-                map_dic[sample_name] = hisat2.align(sample_f,ref_prefix,out_name,mthreads)
+                map_dic[sample_name] = hisat2.align(sample_f,'',ref_prefix,out_name,mthreads)
             else:
                 raise Exception('Load no input files')
 
