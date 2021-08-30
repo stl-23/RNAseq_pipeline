@@ -1,30 +1,34 @@
 # Title     : GO enrichment for DEGs
 # Created by: stl23
 # Created on: 2021/8/6
+## code from https://blog.csdn.net/sinat_30623997/article/details/79250940?utm_source=blogxgwz1
 
 library(clusterProfiler)
 library(ggplot2)
+library(org.Hs.eg.db)
 args <- commandArgs(trailingOnly = TRUE)
 input_file <- args[1]
 out_path <- args[2]
 prefix <- args[3]
-OrgDb <-  args[4]
+db <-  args[4]
 out_file <- paste0(out_path,'/',prefix,"_GO_out.tsv")
 data <- read.table(file=input_file,header=T,sep = "\t")
 target_gene_id <- unique(data$GeneID)
+target_gene_id_changed <- bitr(target_gene_id, fromType="SYMBOL", toType="ENTREZID", OrgDb=db)
+target_gene_id_changed <- target_gene_id_changed$ENTREZID
 ## out file
-ego_ALL <- enrichGO(OrgDb=OrgDb,
-                   gene = target_gene_id,
+ego_ALL <- enrichGO(OrgDb=db,
+                   gene = target_gene_id_changed,
                    pvalueCutoff = 0.05,
                    pAdjustMethod = "BH",
                    qvalueCutoff = 0.05,
                    ont = "ALL",
                    readable=TRUE)
-write.tsv(data.frame(ego_ALL@result),file=out_file,quot=FALSE)
+write.csv(data.frame(ego_ALL@result),file=out_file,quot=FALSE)
 ## draw
 display_num <- c(15,10,15)
-ego_MF <- enrichGO(OrgDb=orgDb,
-             gene = target_gene_id,
+ego_MF <- enrichGO(OrgDb=db,
+             gene = target_gene_id_changed,
              pvalueCutoff = 0.05,
              pAdjustMethod = "BH",
              qvalueCutoff = 0.05,
@@ -35,8 +39,9 @@ if (nrow(MF_table) < display_num[1]){
     ego_result_MF <- MF_table
     }else{
     ego_result_MF <- MF_table[1:display_num[1],]
-ego_CC <- enrichGO(OrgDb=OrgDb,
-                   gene = target_gene_id,
+}
+ego_CC <- enrichGO(OrgDb=db,
+                   gene = target_gene_id_changed,
                    pvalueCutoff = 0.05,
                    pAdjustMethod = "BH",
                    qvalueCutoff = 0.05,
@@ -47,8 +52,9 @@ if (nrow(CC_table) < display_num[2]){
     ego_result_CC <- CC_table
     }else{
     ego_result_CC <- CC_table[1:display_num[2],]
-ego_BP <- enrichGO(OrgDb=OrgDb,
-                   gene = target_gene_id,
+}
+ego_BP <- enrichGO(OrgDb=db,
+                   gene = target_gene_id_changed,
                    pvalueCutoff = 0.05,
                    pAdjustMethod = "BH",
                    qvalueCutoff = 0.05,
@@ -59,12 +65,12 @@ if (nrow(BP_table) < display_num[3]){
     ego_result_BP <- BP_table
     }else{
     ego_result_BP <- BP_table[1:display_num[3],]
-
+}
 go_enrich_df <- data.frame(ID=c(ego_result_BP$ID, ego_result_CC$ID, ego_result_MF$ID),
 Description=c(ego_result_BP$Description, ego_result_CC$Description, ego_result_MF$Description),
 GeneNumber=c(ego_result_BP$Count, ego_result_CC$Count, ego_result_MF$Count),
-type=factor(c(rep("biological process", display_number[1]), rep("cellular component", display_number[2]),
-rep("molecular function", display_number[3])), levels=c("molecular function", "cellular component", "biological process"
+type=factor(c(rep("biological process", nrow(ego_result_BP)), rep("cellular component", nrow(ego_result_CC)),
+rep("molecular function", nrow(ego_result_MF))), levels=c("biological process", "cellular component", "molecular function"
 )))
 ## numbers as data on x axis
 go_enrich_df$number <- factor(rev(1:nrow(go_enrich_df)))
@@ -97,7 +103,6 @@ p <- ggplot(data=go_enrich_df, aes(x=number, y=GeneNumber, fill=type)) +
   xlab("GO term") +
   theme(axis.text=element_text(face = "bold", color="gray50")) +
   labs(title = "The Most Enriched GO Terms")
-p
 
 pdf(file=paste0(out_path,'/',prefix,'_go_enrichment.pdf'))
 p
@@ -107,15 +112,12 @@ svg(file=paste0(out_path,'/',prefix,'_go_enrichment.svg'))
 p
 dev.off()
 
-p2 <- plotGOgraph(ego_MF)
-pdf(file=paste0(out_path,'/',prefix,'_go_MF_DAG.pdf'))
-p2
+pdf(file=paste0(out_path,'/',prefix,'_go_MF_DAG.pdf'),width = 10,height = 15)
+plotGOgraph(ego_MF)
 dev.off()
-p3 <- plotGOgraph(ego_CC)
-pdf(file=paste0(out_path,'/',prefix,'_go_CC_DAG.pdf'))
-p3
+pdf(file=paste0(out_path,'/',prefix,'_go_CC_DAG.pdf'),width = 10,height = 15)
+plotGOgraph(ego_CC)
 dev.off()
-p4 <- plotGOgraph(ego_BP)
-pdf(file=paste0(out_path,'/',prefix,'_go_BP_DAG.pdf'))
-p4
+pdf(file=paste0(out_path,'/',prefix,'_go_BP_DAG.pdf'),width = 10,height = 15)
+plotGOgraph(ego_BP)
 dev.off()
