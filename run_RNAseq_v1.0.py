@@ -41,12 +41,16 @@ def mapping(dic,ref_prefix,out_path):
     for group, samples in dic.items():
         for sample in samples:
             sample_name = sample.split(':')[0]
-            sample_f,sample_r = sample.split(':')[1].split(';')
+            sample_list = sample.split(':')[1].split(';')
             out_name = os.path.join(out_path, sample_name)
-            if sample_f and sample_r: # paired end
+            if len(sample_list) == 2: # paired end
+                sample_f,sample_r = sample_list[0],sample_list[1]
                 map_dic[sample_name] = hisat2.align(sample_f,sample_r,ref_prefix,out_name,mthreads)
-            elif not sample_r: # single end
+            elif len(sample_list) == 1: # single end
+                sample_f = sample_list[0]
                 map_dic[sample_name] = hisat2.align(sample_f,ref_prefix,out_name,mthreads)
+            else:
+                raise Exception('Load no input files')
 
     return map_dic
 
