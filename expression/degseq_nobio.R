@@ -12,7 +12,7 @@ prefix <- args[4]
 if (!dir.exists(paths = path)) {
       stop("Directory provided does not exist")
     }
-input_file <- file.path(path,'All.read.count.for_r.txt')
+input_file <- file.path(path,'../All.read.count.for_r.txt')
 sample_name <- unlist(strsplit(samples,','))
 group_name <- unlist(strsplit(groups,','))
 group_compare <- group_name[!duplicated(group_name)]

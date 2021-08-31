@@ -1,4 +1,4 @@
-# Title     : Identify DEGs for bio repeat samples
+# Title     : Identify DEGs for bio repeat samples (n<4)
 # Created by: stl23
 # Created on: 2021/8/5
 
@@ -10,15 +10,15 @@ prefix <- args[3]
 if (!dir.exists(paths = path)) {
       stop("Directory provided does not exist")
     }
-input_file <- file.path(path,'All.read.count.for_r.txt')
+input_file <- file.path(path,'../All.read.count.for_r.txt')
 group_name <- unlist(strsplit(groups,','))
 out_gene_csv <- paste0(path,'/',prefix,'.RNAseq_gene_results.csv')
 out_DE_gene <- paste0(path,'/',prefix,'.RNAseq_different_expression_genes_results.tsv')
 out_up_gene <- paste0(path,'/',prefix,'.RNAseq_UP_genes_results.tsv')
 out_down_gene <- paste0(path,'/',prefix,'.RNAseq_DOWN_genes_results.tsv')
 
-# Load gene data(Geneid Chr Start End Strand Length file_name1 file_name2...)
-genecountData <- read.table(file = input_file, sep="\t", header=T)
+# Load gene data(Geneid file_name1 file_name2...)
+genecountData <- read.table(file = input_file, sep="\t", row.names = 1, header=T)
 ## Data format (Geneid sample1 sample2 ...)
 #genecountData <- genecountData[,-2:-6]
 #names(genecountData[,-1]) <- sample_name ## change file names to sample names
@@ -28,12 +28,14 @@ genecountData <- read.table(file = input_file, sep="\t", header=T)
 condition <- factor(group_name)  ## order limited: c("Control","Treatment") --> Treatment vs. Control
 
 # Get target matrix
-genecolData <- data.frame(row.names=colnames(genecountData)[2:length(colnames(genecountData))], condition)
+genecolData <- data.frame(row.names=colnames(genecountData)[1:length(colnames(genecountData))], condition)
 genecountData <- genecountData[, rownames(genecolData)]
 genedds <- DESeqDataSetFromMatrix(countData = as.matrix(genecountData), colData = genecolData, design = ~ condition)
 # Identify signficant differently expressed Transcripts/genes
 genedataset <- DESeq(genedds)
-generes <- results(genedataset)
+generes <- as.data.frame(results(genedataset))
+generes <- cbind(rownames(generes),generes)
+colnames(generes)[1] <- 'GeneID'
 
 # Sort by q value
 generesordered <- generes[order(generes$padj),]
