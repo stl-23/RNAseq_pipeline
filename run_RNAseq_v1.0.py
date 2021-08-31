@@ -19,14 +19,14 @@ def checksamples(inputs_dir,samples_dic):
             sample_r_list = glob.glob(os.path.join(os.path.abspath(inputs_dir).rstrip('/'),sample+'_2*'))
             if sample_f_list and sample_r_list:
                 sample_f = sample_f_list[0]
-                sample_r = sample_f_list[0]
+                sample_r = sample_r_list[0]
                 if group in new_dic:
                     new_dic[group].append(sample+':'+sample_f+';'+sample_r)
                 else:
                     new_dic[group] = [sample+':'+sample_f+';'+sample_r]
             elif sample_f_list and not sample_r_list:
-                sample_f = sample_f_list[0]
                 paired = False
+                sample_f = sample_f_list[0]
                 if group in new_dic:
                     new_dic[group].append(sample + ':' + sample_f)
                 else:
@@ -274,8 +274,8 @@ if __name__ == '__main__':
             utils.out_cmd('s4_'+group+'.All.KEGG.sh',Enrich_dic[group][1])
     else:
         print("Step5:Enrichment analysis...")
-        go_cmds = [i[0] for i in Enrich_dic]
-        kegg_cmds = [i[1] for i in Enrich_dic]
+        go_cmds = [i[0] for i in Enrich_dic.values()]
+        kegg_cmds = [i[1] for i in Enrich_dic.values()]
         utils.multi_run(utils.run_shell_cmd, go_cmds, jobs)
         utils.multi_run(utils.run_shell_cmd, kegg_cmds, jobs)
 
