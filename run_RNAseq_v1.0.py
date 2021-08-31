@@ -61,6 +61,7 @@ def obtainDEG(groups,samples_dic,DEG_path):
         two_group_samples = samples_dic[A] + samples_dic[B]
         two_group_names = [A] * len(samples_dic[A]) + [B] * len(samples_dic[B])
         two_group_out_path = os.path.join(DEG_path,A + 'vs' + B)
+        utils.makedir(two_group_out_path)
         #DE_file = os.path.join(two_group_out_path, A + 'vs' + B + ".RNAseq_different_expression_genes_results.tsv")
         if len(samples_dic[A]) < 2 or len(samples_dic[B]) < 2: ## no bio repeats
             nobio_cmds = nobiorepeat.makeDEscript(two_group_samples,two_group_names,two_group_out_path,A+'vs'+B)
