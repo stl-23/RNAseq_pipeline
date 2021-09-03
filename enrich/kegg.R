@@ -35,7 +35,11 @@ kegg_df <- enrichKEGG(target_gene_id_changed,
                       qvalueCutoff = 0.05,
                       use_internal_data = T
                       )
-write.csv(data.frame(kegg_df@result),file=outfile,quot=FALSE)
+kk = setReadable(kegg_df,
+                  OrgDb = db,
+                  keyType = "ENTREZID")
+write.csv(data.frame(kk@result),file=outfile,quot=FALSE)
+
 ## draw
 display_num <- 20
 num <- nrow(as.data.frame(kegg_df))
