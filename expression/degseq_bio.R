@@ -25,7 +25,7 @@ genecountData <- read.table(file = input_file, sep="\t", row.names = 1, header=T
 #genecountData <- as.matrix(genecountData)
 #rownames(genecountData) <- genecountData$Geneid
 #colnames(genecountData)[1] <- 'GeneID'
-condition <- factor(group_name)  ## order limited: c("Control","Treatment") --> Treatment vs. Control
+condition <- factor(group_name,levels = unique(group_name))  ## order limited: c("Control","Treatment") --> Treatment vs. Control
 
 # Get target matrix
 genecolData <- data.frame(row.names=colnames(genecountData)[1:length(colnames(genecountData))], condition)
