@@ -245,13 +245,14 @@ if __name__ == '__main__':
     # get DEGs
     compare_groups = compare.split(',')
     DEG_dic = obtainDEG(compare_groups,samples_dic,DEG_path)
+
     if script:
         for group in DEG_dic:
-            if len(DEG_dic[group]) == 2: # no bio repeats
+            A,B = group.split(':')[0],group.split(':')[1]
+            if len(samples_dic[A]) < 2 or len(samples_dic[B]) < 2: ## no bio repeats
                 utils.out_cmd('s4.1_'+group+'.DEG.sh', DEG_dic[group][0])
                 utils.out_cmd('s4.2_'+ group+'.volcano.sh', DEG_dic[group][1])
-            elif len(DEG_dic[group]) == 3: # bio repeats
-                #utils.out_cmd('s3.2.1_'+group+'.cal.matrix.sh',DEG_dic[group][0])
+            elif len(samples_dic[A]) >= 2 and len(samples_dic[B]) >= 2: ## bio repeats
                 utils.out_cmd('s4.1_'+group+'.DEG.sh', DEG_dic[group][0])
                 utils.out_cmd('s4.2_'+group+'.volcano.sh', DEG_dic[group][1])
     else:
@@ -260,10 +261,11 @@ if __name__ == '__main__':
         DEG_cmds = []
         volcano_cmds = []
         for group in DEG_dic:
-            if len(DEG_dic[group]) == 2: # no bio repeats
+            A,B = group.split(':')[0],group.split(':')[1]
+            if len(samples_dic[A]) < 2 or len(samples_dic[B]) < 2: ## no bio repeats
                 DEG_cmds.append(DEG_dic[group][0])
                 volcano_cmds.append(DEG_dic[group][1])
-            elif len(DEG_dic[group]) == 3: # bio repeats
+            elif len(samples_dic[A]) >= 2 and len(samples_dic[B]) >= 2: ## bio repeats
                 #cal_matrix_cmds.append(DEG_dic[group][0])
                 DEG_cmds.append(DEG_dic[group][0])
                 volcano_cmds.append(DEG_dic[group][1])
