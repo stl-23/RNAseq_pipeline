@@ -223,7 +223,7 @@ if __name__ == '__main__':
             print("Step2:Transcripts quantitation...")
             utils.multi_run(utils.run_shell_cmd, list(assemble_quantity_dic.values()), jobs)
 
-    # featurecount for read count
+    # read count
     if merge:
         merged_gtf_file = os.path.join(assembly_path, 'merged.gtf')
         count_matrix_cmd = count.makefeaturecount(bams, merged_gtf_file, DEG_path, paired, mthreads)
@@ -233,21 +233,27 @@ if __name__ == '__main__':
         utils.out_cmd('s3.1_all_count_matrix.sh', count_matrix_cmd)
 
     else:
-        print("Step3:Read count table generating...")
+        print("Step3.1:Read count table generating...")
         utils.multi_run(utils.run_shell_cmd, count_matrix_cmd, jobs)
-
+    ## FPKM and TPM
+    fpkm_tpm_cmd = count.fpkm_tpm_sum(samples,groups,assembly_path,DEG_path)
+    if script:
+        utils.out_cmd('s3.2_all_fpkm_tpm.sh', fpkm_tpm_cmd)
+    else:
+        print("Step3.2:FPKM/TPM")
+        utils.multi_run(utils.run_shell_cmd,fpkm_tpm_cmd, 1)
     # get DEGs
     compare_groups = compare.split(',')
     DEG_dic = obtainDEG(compare_groups,samples_dic,DEG_path)
     if script:
         for group in DEG_dic:
             if len(DEG_dic[group]) == 2: # no bio repeats
-                utils.out_cmd('s3.2_'+group+'.DEG.sh', DEG_dic[group][0])
-                utils.out_cmd('s3_3_'+ group+'.volcano.sh', DEG_dic[group][1])
+                utils.out_cmd('s4.1_'+group+'.DEG.sh', DEG_dic[group][0])
+                utils.out_cmd('s4.2_'+ group+'.volcano.sh', DEG_dic[group][1])
             elif len(DEG_dic[group]) == 3: # bio repeats
                 #utils.out_cmd('s3.2.1_'+group+'.cal.matrix.sh',DEG_dic[group][0])
-                utils.out_cmd('s3.2_'+group+'.DEG.sh', DEG_dic[group][0])
-                utils.out_cmd('s3_3_'+group+'.volcano.sh', DEG_dic[group][1])
+                utils.out_cmd('s4.1_'+group+'.DEG.sh', DEG_dic[group][0])
+                utils.out_cmd('s4.2_'+group+'.volcano.sh', DEG_dic[group][1])
     else:
         print("Step4: %s differently expressed genes(DEGs) identifying..." %(','.join(DEG_dic.keys())))
         cal_matrix_cmds = []
@@ -270,8 +276,8 @@ if __name__ == '__main__':
     Enrich_dic = obtainEnrich(compare_groups,samples_dic,DEG_path,org)
     if script:
         for group in Enrich_dic:
-            utils.out_cmd('s4_'+group+'.All.GO.sh',Enrich_dic[group][0])
-            utils.out_cmd('s4_'+group+'.All.KEGG.sh',Enrich_dic[group][1])
+            utils.out_cmd('s5_'+group+'.All.GO.sh',Enrich_dic[group][0])
+            utils.out_cmd('s5_'+group+'.All.KEGG.sh',Enrich_dic[group][1])
     else:
         print("Step5:Enrichment analysis...")
         go_cmds = [i[0] for i in Enrich_dic.values()]
