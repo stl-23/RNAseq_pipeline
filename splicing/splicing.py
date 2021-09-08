@@ -1,5 +1,5 @@
 import os
-from utils import getConfig,makedir
+from utils import getConfig
 
 python3 = getConfig('Transcript','python3')
 rmats = getConfig('Transcript','rmats')
