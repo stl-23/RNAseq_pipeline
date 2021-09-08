@@ -85,7 +85,7 @@ def obtainAS(groups,samples_dic,map_result_path,AS_path,gtf,paired_or_single,rea
         utils.makedir(temp_path)
         A_paths = [os.path.join(map_result_path,i) for i in samples_dic[A]]
         B_paths = [os.path.join(map_result_path,i) for i in samples_dic[B]]
-        with open(os.path.join(temp_path,'b1.txt'),'w') as fa, open(os.path.join(temp_path,'b2.txt','w')) as fb:
+        with open(os.path.join(temp_path,'b1.txt'),'w') as fa, open(os.path.join(temp_path,'b2.txt'),'w') as fb:
             fa.write(','.join(A_paths))
             fb.write(','.join(B_paths))
         as_cmd = splicing.alternative_splicing(two_group_out_path,gtf,paired_or_single,readlength,theads)
