@@ -6,6 +6,7 @@ import utils
 import subprocess
 
 from align import hisat2
+from splicing import splicing
 from assembly import stringtie
 from expression import (count,biorepeat,nobiorepeat,volcano)
 from enrich import (go,kegg)
@@ -74,7 +75,25 @@ def obtainDEG(groups,samples_dic,DEG_path):
 
     return DEG_dic
 
-def obtainEnrich(groups,samples_dic,DEG_path,org):
+def obtainAS(groups,samples_dic,map_result_path,AS_path,gtf,paired_or_single,readlength=50,theads=8):
+    AS_dic = {}
+    for group in groups:
+        A,B = group.split(':')[0],group.split(':')[1]
+        two_group_out_path = os.path.join(AS_path,A + 'vs' + B)
+        temp_path = os.path.join(two_group_out_path,'temp/')
+        utils.makedir(two_group_out_path)
+        utils.makedir(temp_path)
+        A_paths = [os.path.join(map_result_path,i) for i in samples_dic[A]]
+        B_paths = [os.path.join(map_result_path,i) for i in samples_dic[B]]
+        with open(os.path.join(temp_path,'b1.txt'),'w') as fa, open(os.path.join(temp_path,'b2.txt','w')) as fb:
+            fa.write(','.join(A_paths))
+            fb.write(','.join(B_paths))
+        as_cmd = splicing.alternative_splicing(two_group_out_path,gtf,paired_or_single,readlength,theads)
+        AS_dic[A + 'vs' + B] = as_cmd
+
+    return AS_dic
+
+def obtainEnrich(groups,DEG_path,org):
     Enrich_dic = {}
     for group in groups:
         A,B = group.split(':')[0],group.split(':')[1]
@@ -118,6 +137,8 @@ if __name__ == '__main__':
                          help="DEG(Differentially Expressed Genes) group pairs. group1:group2,group1:group3...")
     general.add_argument('--merge', action='store_true',
                          help="Merge novel transcripts with reference gtf file if set True,otherwise use reference gtf only")
+    general.add_argument('--readlength',type=int,default=50,
+                         help="average read length for alternative splicing by rMATs.")
     general.add_argument('--script',action='store_true',
                          help='Only generate shell scripts')
     general.add_argument('--jobs',type=int,default=1,
@@ -142,6 +163,7 @@ if __name__ == '__main__':
     merge = args.merge
     org = args.org
     jobs = args.jobs
+    readlength = args.readlength
 ### parse parameters ###
     index_shell = os.path.join(os.path.abspath(os.path.dirname(__file__)),'align','index.sh')
     statistics_shell = os.path.join(os.path.abspath(os.path.dirname(__file__)),'align','statistics.sh')
@@ -172,11 +194,14 @@ if __name__ == '__main__':
   ## {group1:[sample1,sample2,sample3],group2:[sample4,sample5,sample6]}
     samples_dic = { i[0]:i[1].split(",") for i in zip(groups.strip().split(":"),samples.strip().split(":")) }
   ## main work
-    map_result_path = os.path.join(os.path.abspath(outputs_dir), 'mapping_results')
-    assembly_path = os.path.join(os.path.abspath(outputs_dir), 'quantitation_results')
-    DEG_path = os.path.join(os.path.abspath(outputs_dir), 'DEG_results')
+    map_result_path = os.path.join(os.path.abspath(outputs_dir), '01.mapping_results')
+    assembly_path = os.path.join(os.path.abspath(outputs_dir), '02.quantitation_results')
+    AS_path = os.path.join(os.path.abspath(outputs_dir), '03.alternative_splicing_results')
+    DEG_path = os.path.join(os.path.abspath(outputs_dir), '04.DEG_results')
+    
     utils.makedir(map_result_path)
     utils.makedir(assembly_path)
+    utils.makedir(AS_path)
     utils.makedir(DEG_path)
     # mapping
     map_dic = {}
@@ -242,21 +267,38 @@ if __name__ == '__main__':
     else:
         print("Step3.2:FPKM/TPM")
         utils.multi_run(utils.run_shell_cmd,fpkm_tpm_cmd, 1)
-    # get DEGs
+    
+
+    ## get differentially alternative splicing
     compare_groups = compare.split(',')
+    if paired:
+        paired_or_single = "paired"
+    else:
+        paired_or_single = "single"
+    AS_dic = obtainAS(compare_groups,samples_dic,map_result_path,AS_path,gtf,paired_or_single,readlength,mthreads)
+    if script:
+        for group in AS_dic:
+            utils.out_cmd('s4.1_'+group+'.AS.sh', AS_dic[group][0])
+    else:
+        print("Step4: %s differentially alternative splicing identifying..." %(','.join(AS_dic.keys())))
+        as_cmds = []
+        for group in AS_dic:
+            as_cmds.append(AS_dic[group])
+        utils.multi_run(utils.run_shell_cmd,as_cmds,jobs)
+    # get DEGs
     DEG_dic = obtainDEG(compare_groups,samples_dic,DEG_path)
 
     if script:
         for group in DEG_dic:
             A,B = group.split(':')[0],group.split(':')[1]
             if len(samples_dic[A]) < 2 or len(samples_dic[B]) < 2: ## no bio repeats
-                utils.out_cmd('s4.1_'+group+'.DEG.sh', DEG_dic[group][0])
-                utils.out_cmd('s4.2_'+ group+'.volcano.sh', DEG_dic[group][1])
+                utils.out_cmd('s5.1_'+group+'.DEG.sh', DEG_dic[group][0])
+                utils.out_cmd('s5.2_'+ group+'.volcano.sh', DEG_dic[group][1])
             elif len(samples_dic[A]) >= 2 and len(samples_dic[B]) >= 2: ## bio repeats
-                utils.out_cmd('s4.1_'+group+'.DEG.sh', DEG_dic[group][0])
-                utils.out_cmd('s4.2_'+group+'.volcano.sh', DEG_dic[group][1])
+                utils.out_cmd('s5.1_'+group+'.DEG.sh', DEG_dic[group][0])
+                utils.out_cmd('s5.2_'+group+'.volcano.sh', DEG_dic[group][1])
     else:
-        print("Step4: %s differently expressed genes(DEGs) identifying..." %(','.join(DEG_dic.keys())))
+        print("Step5: %s differently expressed genes(DEGs) identifying..." %(','.join(DEG_dic.keys())))
         cal_matrix_cmds = []
         DEG_cmds = []
         volcano_cmds = []
@@ -273,15 +315,15 @@ if __name__ == '__main__':
         #    utils.multi_run(utils.run_shell_cmd, cal_matrix_cmds, jobs)
         utils.multi_run(utils.run_shell_cmd, DEG_cmds, jobs)
         utils.multi_run(utils.run_shell_cmd, volcano_cmds, jobs)
-
+    
     # GO and KEGG enrichment      
-    Enrich_dic = obtainEnrich(compare_groups,samples_dic,DEG_path,org)
+    Enrich_dic = obtainEnrich(compare_groups,DEG_path,org)
     if script:
         for group in Enrich_dic:
-            utils.out_cmd('s5_'+group+'.All.GO.sh',Enrich_dic[group][0])
-            utils.out_cmd('s5_'+group+'.All.KEGG.sh',Enrich_dic[group][1])
+            utils.out_cmd('s6_'+group+'.All.GO.sh',Enrich_dic[group][0])
+            utils.out_cmd('s6_'+group+'.All.KEGG.sh',Enrich_dic[group][1])
     else:
-        print("Step5:Enrichment analysis...")
+        print("Step6:Enrichment analysis...")
         go_cmds = [i[0] for i in Enrich_dic.values()]
         kegg_cmds = [i[1] for i in Enrich_dic.values()]
         utils.multi_run(utils.run_shell_cmd, go_cmds, jobs)
