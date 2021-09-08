@@ -61,17 +61,17 @@ def obtainDEG(groups,samples_dic,DEG_path):
         A,B = group.split(':')[0],group.split(':')[1]
         two_group_samples = samples_dic[A] + samples_dic[B]
         two_group_names = [A] * len(samples_dic[A]) + [B] * len(samples_dic[B])
-        two_group_out_path = os.path.join(DEG_path,A + 'vs' + B)
+        two_group_out_path = os.path.join(DEG_path,A + '_vs_' + B)
         utils.makedir(two_group_out_path)
-        #DE_file = os.path.join(two_group_out_path, A + 'vs' + B + ".RNAseq_different_expression_genes_results.tsv")
+        #DE_file = os.path.join(two_group_out_path, A + '_vs_' + B + ".RNAseq_different_expression_genes_results.tsv")
         if len(samples_dic[A]) < 2 or len(samples_dic[B]) < 2: ## no bio repeats
-            nobio_cmds = nobiorepeat.makeDEscript(two_group_samples,two_group_names,two_group_out_path,A+'vs'+B)
+            nobio_cmds = nobiorepeat.makeDEscript(two_group_samples,two_group_names,two_group_out_path,A+'_vs_'+B)
             volcano_cmd = volcano.volcano(A, B, two_group_out_path, False)
-            DEG_dic[A + 'vs' + B] = [nobio_cmds, volcano_cmd]
+            DEG_dic[A + '_vs_' + B] = [nobio_cmds, volcano_cmd]
         elif len(samples_dic[A]) >= 2 and len(samples_dic[B]) >= 2: ## bio repeats
-            bio_cmd = biorepeat.makedeseq2(assembly_path,two_group_samples,two_group_names,two_group_out_path,A+'vs'+B)
+            bio_cmd = biorepeat.makedeseq2(assembly_path,two_group_samples,two_group_names,two_group_out_path,A+'_vs_'+B)
             volcano_cmd = volcano.volcano(A, B, two_group_out_path, True)
-            DEG_dic[A + 'vs' + B] = [bio_cmd, volcano_cmd]
+            DEG_dic[A + '_vs_' + B] = [bio_cmd, volcano_cmd]
 
     return DEG_dic
 
@@ -79,17 +79,17 @@ def obtainAS(groups,samples_dic,map_result_path,AS_path,gtf,paired_or_single,rea
     AS_dic = {}
     for group in groups:
         A,B = group.split(':')[0],group.split(':')[1]
-        two_group_out_path = os.path.join(AS_path,A + 'vs' + B)
+        two_group_out_path = os.path.join(AS_path,A + '_vs_' + B)
         temp_path = os.path.join(two_group_out_path,'temp/')
         utils.makedir(two_group_out_path)
         utils.makedir(temp_path)
-        A_paths = [os.path.join(map_result_path,i) for i in samples_dic[A]]
-        B_paths = [os.path.join(map_result_path,i) for i in samples_dic[B]]
+        A_paths = [os.path.join(map_result_path,i+'.bam') for i in samples_dic[A]]
+        B_paths = [os.path.join(map_result_path,i+'.bam') for i in samples_dic[B]]
         with open(os.path.join(temp_path,'b1.txt'),'w') as fa, open(os.path.join(temp_path,'b2.txt'),'w') as fb:
             fa.write(','.join(A_paths))
             fb.write(','.join(B_paths))
         as_cmd = splicing.alternative_splicing(two_group_out_path,gtf,paired_or_single,readlength,theads)
-        AS_dic[A + 'vs' + B] = as_cmd
+        AS_dic[A + '_vs_' + B] = as_cmd
 
     return AS_dic
 
@@ -97,11 +97,11 @@ def obtainEnrich(groups,DEG_path,org):
     Enrich_dic = {}
     for group in groups:
         A,B = group.split(':')[0],group.split(':')[1]
-        two_group_out_path = os.path.join(DEG_path,A + 'vs' + B)
-        DE_file = os.path.join(two_group_out_path, A + 'vs' + B + ".RNAseq_different_expression_genes_results.tsv")
-        go_cmd = go.makeGO(DE_file,two_group_out_path,A+'vs'+B,org)
-        kegg_cmd = kegg.makeKEGG(DE_file, two_group_out_path, A + 'vs' + B, org)
-        Enrich_dic[A+'vs'+B] = [go_cmd,kegg_cmd]
+        two_group_out_path = os.path.join(DEG_path,A + '_vs_' + B)
+        DE_file = os.path.join(two_group_out_path, A + '_vs_' + B + ".RNAseq_different_expression_genes_results.tsv")
+        go_cmd = go.makeGO(DE_file,two_group_out_path,A+'_vs_'+B,org)
+        kegg_cmd = kegg.makeKEGG(DE_file, two_group_out_path, A + '_vs_' + B, org)
+        Enrich_dic[A+'_vs_'+B] = [go_cmd,kegg_cmd]
      
     return Enrich_dic
 
@@ -290,7 +290,7 @@ if __name__ == '__main__':
 
     if script:
         for group in DEG_dic:
-            A,B = group.split(':')[0],group.split(':')[1]
+            A,B = group.split('_vs_')[0],group.split('_vs_')[1]
             if len(samples_dic[A]) < 2 or len(samples_dic[B]) < 2: ## no bio repeats
                 utils.out_cmd('s5.1_'+group+'.DEG.sh', DEG_dic[group][0])
                 utils.out_cmd('s5.2_'+ group+'.volcano.sh', DEG_dic[group][1])
@@ -303,7 +303,7 @@ if __name__ == '__main__':
         DEG_cmds = []
         volcano_cmds = []
         for group in DEG_dic:
-            A,B = group.split(':')[0],group.split(':')[1]
+            A,B = group.split('_vs_')[0],group.split('_vs_')[1]
             if len(samples_dic[A]) < 2 or len(samples_dic[B]) < 2: ## no bio repeats
                 DEG_cmds.append(DEG_dic[group][0])
                 volcano_cmds.append(DEG_dic[group][1])
