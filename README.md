@@ -11,9 +11,11 @@ docker run --rm -v  /mnt/data/stl/rna_seq/rnaseq/:/scripts -v /mnt/data/stl/rna_
 ```
 # Parameters
 ```
-usage: run_RNAseq_v1.0.py [-h] [-i INPUT] [-o OUTPUT] [-r REFERENCE] [-g GTF] [-v {hg19,hg38}] [--samples SAMPLES]
-                          [--groups GROUPS] [--compare COMPARE] [--merge] [--script] [--jobs JOBS] [--mthreads MTHREADS]
-                          [--org ORG]
+usage: run_RNAseq_v1.0.py [-h] [-i INPUT] [-o OUTPUT] [-r REFERENCE] [-g GTF]
+                          [-v {hg19,hg38}] [--samples SAMPLES]
+                          [--groups GROUPS] [--compare COMPARE] [--merge]
+                          [--readlength READLENGTH] [--script] [--jobs JOBS]
+                          [--mthreads MTHREADS] [--org ORG]
 
 RNAseq pipeline v1.0
 
@@ -27,13 +29,20 @@ General options:
                         The fasta file of reference
   -g GTF, --gtf GTF     The gene annotation file of reference,gtf format
   -v {hg19,hg38}, --build_version {hg19,hg38}
-                        Human genome build version,if used,do not set -r and -g
-  --samples SAMPLES     Sample names. The sample names should be accordant with that in input directorye.g.
-                        sample1,sample2,sample3:sample4,sample5,sample6:sample7...a group of samples should be seperated by
-                        comma
-  --groups GROUPS       Group names. Should be consistent with the order of samples names.e.g. group1:group2:group3...
-  --compare COMPARE     DEG(Differentially Expressed Genes) group pairs. group1:group2,group1:group3...
-  --merge               Merge novel transcripts with reference gtf file if set True,otherwise use reference gtf only
+                        Human genome build version,if used,do not set -r and
+                        -g
+  --samples SAMPLES     Sample names. The sample names should be accordant
+                        with that in input directorye.g. sample1,sample2,sampl
+                        e3:sample4,sample5,sample6:sample7...a group of
+                        samples should be seperated by comma
+  --groups GROUPS       Group names. Should be consistent with the order of
+                        samples names.e.g. group1:group2:group3...
+  --compare COMPARE     DEG(Differentially Expressed Genes) group pairs.
+                        group1:group2,group1:group3...
+  --merge               Merge novel transcripts with reference gtf file if set
+                        True,otherwise use reference gtf only
+  --readlength READLENGTH
+                        average read length for alternative splicing by rMATs.
   --script              Only generate shell scripts
   --jobs JOBS           The maximum jobs when run in local at the same time
   --mthreads MTHREADS   Maximum Threads
