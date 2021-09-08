@@ -278,7 +278,7 @@ if __name__ == '__main__':
     AS_dic = obtainAS(compare_groups,samples_dic,map_result_path,AS_path,gtf,paired_or_single,readlength,mthreads)
     if script:
         for group in AS_dic:
-            utils.out_cmd('s4.1_'+group+'.AS.sh', AS_dic[group][0])
+            utils.out_cmd('s4.1_'+group+'.AS.sh', AS_dic[group])
     else:
         print("Step4: %s differentially alternative splicing identifying..." %(','.join(AS_dic.keys())))
         as_cmds = []
