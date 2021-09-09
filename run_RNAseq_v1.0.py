@@ -165,18 +165,18 @@ if __name__ == '__main__':
     jobs = args.jobs
     readlength = args.readlength
 ### parse parameters ###
-    index_shell = os.path.join(os.path.abspath(os.path.dirname(__file__)),'align','index.sh')
-    statistics_shell = os.path.join(os.path.abspath(os.path.dirname(__file__)),'align','statistics.sh')
-    softwares_list = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'softwares.config')
+    index_shell = os.path.join(os.path.dirname(os.path.abspath(__file__)),'align','index.sh')
+    statistics_shell = os.path.join(os.path.dirname(os.path.abspath(__file__)),'align','statistics.sh')
+    softwares_list = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'softwares.config')
     ref_prefix = ''
     if buildver and not (ref or gtf):
         if buildver == 'hg19':
-            genomicsdb = os.path.join(os.path.dirname(os.path.abspath(inputs_dir).rstrip('/')), 'genomicsdb','hg19/')
+            genomicsdb = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'genomicsdb','hg19/')
             ref = os.path.join(genomicsdb,'hg19.fa')
             gtf = os.path.join(genomicsdb,'hg19.gtf')
             ref_prefix = os.path.splitext(ref)[0]
         elif buildver == 'hg38':
-            genomicsdb = os.path.join(os.path.dirname(os.path.abspath(inputs_dir).rstrip('/')), 'genomicsdb','hg38/')
+            genomicsdb = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'genomicsdb','hg38/')
             ref = os.path.join(genomicsdb,'hg38.fa')
             ref_prefix = os.path.splitext(ref)[0]
             gtf = os.path.join(genomicsdb,'hg38.gtf')
