@@ -30,7 +30,7 @@ condition <- factor(group_name,levels = unique(group_name))  ## order limited: c
 # Get target matrix
 genecolData <- data.frame(row.names=colnames(genecountData)[1:length(colnames(genecountData))], condition)
 genecountData <- genecountData[, rownames(genecolData)]
-genedds <- DESeqDataSetFromMatrix(countData = as.matrix(genecountData), colData = genecolData, design = ~ condition)
+genedds <- DESeqDataSetFromMatrix(countData = as.matrix(round(genecountData)), colData = genecolData, design = ~ condition)
 # Identify signficant differently expressed Transcripts/genes
 genedataset <- DESeq(genedds)
 generes <- as.data.frame(results(genedataset))
